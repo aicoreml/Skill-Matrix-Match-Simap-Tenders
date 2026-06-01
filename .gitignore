@@ -36,3 +36,7 @@ logs/
 
 # OS
 Thumbs.db
+
+# Legacy data files (not used by the app)
+data/consultants.json
+data/tenders.json
