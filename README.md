@@ -18,51 +18,57 @@ This application helps project managers find the best matching SAP consultants f
 
 ## 🚀 Quick Start
 
-### Access via Dashboard
+### Run Locally
 
-1. Navigate to **https://gpt.myddns.me/**
-2. Login with your credentials
-3. Find **SAP Skill Matrix Match** in the "SAP & Enterprise" section
-4. Click **Start** to launch the application
-5. Access at **https://gpt.myddns.me/skill-matrix/**
+```bash
+# Clone the repository
+git clone https://github.com/aicoreml/Skill-Matrix-Match-Simap-Tenders.git
+cd Skill-Matrix-Match-Simap-Tenders
 
-### Direct Access
+# Install dependencies
+pip install -r requirements.txt
 
-If the app is already running, access directly at: **https://gpt.myddns.me/skill-matrix/**
-
-## 📁 Data Files
-
-### Input Files (in `docs/` folder)
-
-| File | Description |
-|------|-------------|
-| `skills.csv` | HR resource pool with 20 SAP consultants |
-| `tenders_enhanced.csv` | 20 sample SAP project tenders |
-
-### Consultant Data Structure
-
-```csv
-ID,Name,Specialization,Exp,Key SAP Modules
-CV001,Markus Berger,FICO,12y,"FI, CO, S/4HANA Finance, BPC, FI-AA"
+# Start the app (binds to all interfaces on port 8503)
+streamlit run app.py --server.port=8503 --server.address=0.0.0.0
 ```
 
-### Tender Data Structure
+The app will be available at `http://localhost:8503/`.
 
-Key columns:
-- `mandatory_skills`: Required skills (pipe-separated)
-- `optional_skills`: Bonus skills (pipe-separated)
-- `matching_profiles`: Pre-defined matching consultant IDs
+## 📁 Data Sources
+
+### Consultant Database (`data/consultants.db`)
+The HR resource pool is stored in a SQLite database. The schema is created automatically on first run.
+
+| Column | Description |
+|--------|-------------|
+| `id` | Consultant ID (primary key, e.g. `CV001`) |
+| `name` | Full name |
+| `title` | Job title |
+| `years_experience` | Years of SAP experience |
+| `location` | City / country |
+| `languages` | Spoken languages |
+| `skills_sap_modules` | Comma-separated SAP module skills |
+| `skills_technical` | Technical skills |
+| `skills_project` | Project / architecture skills |
+| `skills_tools` | Tooling skills |
+| `certifications` | SAP / other certifications |
+| `experience` | Work history |
+| `education` | Education background |
+| `summary` | Short profile summary |
+| `specialization` | Primary specialization |
+| `exp_display` | Pre-formatted experience string (e.g. `12y`) |
+| `key_sap_modules` | Curated list of key SAP modules |
+
+### Live Tenders
+Public tenders are fetched live from **simap.ch** at runtime — no static tender data file is shipped with the app.
 
 ## 🎯 How It Works
 
-### 1. Select a Tender
-Choose from the dropdown menu in the sidebar. View detailed information including:
-- Industry, duration, location
-- Key deliverables and success criteria
-- Mandatory and optional skills
+### 1. Browse Live Tenders
+Click **"🌐 Live simap.ch Tenders"** in the sidebar to search public SAP tenders.
 
-### 2. Find Matching Consultants
-Click **"🔍 Find Matching Consultants"** to analyze skill overlap.
+### 2. Match Consultants
+From a tender result, click **"🎯 Match Consultants"** to analyze skill overlap.
 
 ### 3. Review Results
 - **Summary Metrics**: Total consultants, excellent/good/low matches
@@ -112,8 +118,8 @@ Toggle between languages using the radio button in the sidebar:
 
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   Nginx Proxy   │────▶│  Bottle Dashboard│────▶│  Skill Matrix   │
-│  :443 (HTTPS)   │     │     :8000        │     │   Streamlit     │
+│   Nginx Proxy   │────▶│  Auth Wrapper    │────▶│  Skill Matrix   │
+│  :443 (HTTPS)   │     │  (optional, :8000)│     │   Streamlit     │
 │                 │     │                  │     │     :8503       │
 └─────────────────┘     └──────────────────┘     └────────┬────────┘
                                                           │
@@ -134,17 +140,13 @@ Skill_Matrix/
 ├── README_DE.md                # German documentation
 ├── FLOWCHART.md                # Technical flowchart (English)
 ├── FLOWCHART_DE.md             # German flowchart
-├── data/                       # JSON datasets (legacy)
-│   ├── consultants.json
-│   └── tenders.json
-└── docs/                       # CSV data files (active)
-    ├── skills.csv              # HR resource pool
-    └── tenders_enhanced.csv    # Project tenders
+└── data/
+    └── consultants.db          # SQLite database (HR resource pool)
 ```
 
-## ⚙️ Configuration
+## ⚙️ Deployment
 
-### Nginx Proxy (`/opt/homebrew/etc/nginx/servers/gpt.myddns.me.conf`)
+### Nginx Reverse Proxy (example)
 
 ```nginx
 location /skill-matrix/ {
@@ -159,12 +161,7 @@ location /skill-matrix/ {
 }
 ```
 
-### Start Route (Bottle Dashboard)
-
-Endpoint: `POST /start-skill-matrix`
-- Authentication required (admin)
-- Starts Streamlit app on port 8503
-- Health check with 20-second timeout
+> **Note:** Replace `proxy_pass` with your own host/port and the `location` prefix with whatever path you want to expose the app under.
 
 ## 🔧 Dependencies
 
@@ -182,22 +179,18 @@ pip install -r requirements.txt
 ## 🧪 Testing
 
 ### Manual Testing
-1. Open app at https://gpt.myddns.me/skill-matrix/
-2. Select tender TND001 (S/4HANA Finance)
-3. Click "Find Matching Consultants"
-4. Verify CV001 (Markus Berger) appears as top match
-5. Check AI interpretation displays correctly
-6. Switch language to German and verify translations
+1. Start the app locally (`streamlit run app.py …`)
+2. Open `http://localhost:8503/`
+3. Click **"🌐 Live simap.ch Tenders"** in the sidebar
+4. Search for a SAP-related term and pick a result
+5. Click **"🎯 Match Consultants"** on a tender
+6. Verify consultants and AI interpretation display correctly
+7. Switch language to German and verify translations
 
 ### API Testing
 ```bash
-# Check health endpoint
-curl http://localhost:8503/skill-matrix/_stcore/health
-
-# Start via dashboard API
-curl -X POST https://gpt.myddns.me/start-skill-matrix \
-  -H "Cookie: session_id=YOUR_SESSION" \
-  -d ""
+# Health endpoint (Streamlit)
+curl http://localhost:8503/_stcore/health
 ```
 
 ## 📝 Example Use Cases
@@ -221,11 +214,10 @@ curl -X POST https://gpt.myddns.me/start-skill-matrix \
 
 ## 🐛 Troubleshooting
 
-### 502 Bad Gateway
-- **Cause**: Skill Matrix app not running
-- **Solution**: Click "Start" button in dashboard or manually start:
+### Connection Refused / 502 Bad Gateway
+- **Cause**: Streamlit app is not running
+- **Solution**: Start the app:
   ```bash
-  cd /Users/usermacrtx/Documents/Demos/Skill_Matrix
   streamlit run app.py --server.port=8503 --server.address=0.0.0.0
   ```
 
@@ -239,16 +231,7 @@ curl -X POST https://gpt.myddns.me/start-skill-matrix \
 
 ### Language Not Switching
 - **Cause**: Browser cache
-- **Solution**: Clear cookies for gpt.myddns.me or use incognito mode
-
-### Start Button Shows JSON Error
-- **Cause**: Dashboard app needs restart
-- **Solution**: Restart all_demos app:
-  ```bash
-  lsof -ti:8000 | xargs kill -9
-  cd /Users/usermacrtx/Documents/Demos/all_demos
-  python3 app.py &
-  ```
+- **Solution**: Hard-refresh the page (Cmd/Ctrl+Shift+R) or use an incognito window.
 
 ## 📊 Performance
 
@@ -256,10 +239,11 @@ curl -X POST https://gpt.myddns.me/start-skill-matrix \
 - **AI Interpretation**: 5-15 seconds (depends on LLM response time)
 - **Concurrent Users**: Supports 10+ simultaneous users
 
-## 🔐 Security
+## 🔐 Security Notes
 
-- Session-based authentication via Bottle dashboard
-- Admin-only start/stop functionality
+- This app reads consultant data from a local SQLite database and fetches public tender data from `simap.ch`. No write access to the database is required for the matching workflow.
+- When deploying behind a reverse proxy, add authentication (basic auth, OAuth, or a wrapper dashboard) — the app itself has no built-in auth.
+- The `data/consultants.db` file contains personal data (names, locations, experience). Do not commit it to a public repo unless that is intentional.
 - XSRF protection enabled in Streamlit
 - HTTPS encryption via Nginx
 

@@ -18,51 +18,57 @@ Diese Anwendung unterstützt Projektmanager dabei, die am besten passenden SAP-B
 
 ## 🚀 Schnellstart
 
-### Zugriff über Dashboard
+### Lokal starten
 
-1. Navigieren Sie zu **https://gpt.myddns.me/**
-2. Melden Sie sich mit Ihren Zugangsdaten an
-3. Finden Sie **SAP Skill Matrix Match** im Bereich "SAP & Enterprise"
-4. Klicken Sie auf **Start** zum Starten der Anwendung
-5. Zugriff unter **https://gpt.myddns.me/skill-matrix/**
+```bash
+# Repository klonen
+git clone https://github.com/aicoreml/Skill-Matrix-Match-Simap-Tenders.git
+cd Skill-Matrix-Match-Simap-Tenders
 
-### Direkter Zugriff
+# Abhängigkeiten installieren
+pip install -r requirements.txt
 
-Wenn die App bereits läuft, direkter Zugriff unter: **https://gpt.myddns.me/skill-matrix/**
-
-## 📁 Datendateien
-
-### Eingabedateien (im `docs/` Ordner)
-
-| Datei | Beschreibung |
-|-------|--------------|
-| `skills.csv` | HR-Ressourcenpool mit 20 SAP-Beratern |
-| `tenders_enhanced.csv` | 20 beispielhafte SAP-Projektausschreibungen |
-
-### Beraterdatenstruktur
-
-```csv
-ID,Name,Specialization,Exp,Key SAP Modules
-CV001,Markus Berger,FICO,12y,"FI, CO, S/4HANA Finance, BPC, FI-AA"
+# App starten (lauscht auf allen Interfaces auf Port 8503)
+streamlit run app.py --server.port=8503 --server.address=0.0.0.0
 ```
 
-### Ausschreibungsdatenstruktur
+Die App ist anschließend unter `http://localhost:8503/` erreichbar.
 
-Hauptspalten:
-- `mandatory_skills`: Erforderliche Fähigkeiten (Pipe-getrennt)
-- `optional_skills`: Bonusfähigkeiten (Pipe-getrennt)
-- `matching_profiles`: Vordefinierte passende Berater-IDs
+## 📁 Datenquellen
+
+### Beraterdatenbank (`data/consultants.db`)
+Der HR-Ressourcenpool wird in einer SQLite-Datenbank gespeichert. Das Schema wird beim ersten Start automatisch angelegt.
+
+| Spalte | Beschreibung |
+|--------|--------------|
+| `id` | Berater-ID (Primärschlüssel, z. B. `CV001`) |
+| `name` | Vollständiger Name |
+| `title` | Jobtitel |
+| `years_experience` | Jahre SAP-Erfahrung |
+| `location` | Stadt / Land |
+| `languages` | Gesprochene Sprachen |
+| `skills_sap_modules` | Kommagetrennte SAP-Modulkenntnisse |
+| `skills_technical` | Technische Fähigkeiten |
+| `skills_project` | Projekt- / Architekturkenntnisse |
+| `skills_tools` | Tooling-Kenntnisse |
+| `certifications` | SAP- / andere Zertifizierungen |
+| `experience` | Beruflicher Werdegang |
+| `education` | Ausbildung |
+| `summary` | Kurzprofil |
+| `specialization` | Primäre Spezialisierung |
+| `exp_display` | Vorformatierte Erfahrungsangabe (z. B. `12y`) |
+| `key_sap_modules` | Kuratierte Liste der wichtigsten SAP-Module |
+
+### Live-Ausschreibungen
+Öffentliche Ausschreibungen werden zur Laufzeit live von **simap.ch** abgerufen — es wird keine statische Ausschreibungsdatei mit der App ausgeliefert.
 
 ## 🎯 Funktionsweise
 
-### 1. Ausschreibung auswählen
-Wählen Sie aus dem Dropdown-Menü in der Seitenleiste. Zeigen Sie detaillierte Informationen an:
-- Branche, Dauer, Standort
-- Hauptliefergegenstände und Erfolgskriterien
-- Pflicht- und optionale Fähigkeiten
+### 1. Live-Ausschreibungen durchsuchen
+Klicken Sie in der Seitenleiste auf **"🌐 Live simap.ch Tenders"**, um öffentliche SAP-Ausschreibungen zu durchsuchen.
 
-### 2. Passende Berater finden
-Klicken Sie auf **"🔍 Passende Berater finden"** zur Analyse der Kompetenzüberschneidungen.
+### 2. Berater matchen
+Klicken Sie bei einer Ausschreibung auf **"🎯 Match Consultants"**, um die Kompetenzüberschneidung zu analysieren.
 
 ### 3. Ergebnisse überprüfen
 - **Zusammenfassung**: Gesamtberater, Excellent/Good/Low Matches
@@ -112,8 +118,8 @@ Umschalten zwischen Sprachen über den Radio-Button in der Seitenleiste:
 
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   Nginx Proxy   │────▶│  Bottle Dashboard│────▶│  Skill Matrix   │
-│  :443 (HTTPS)   │     │     :8000        │     │   Streamlit     │
+│   Nginx Proxy   │────▶│  Auth-Wrapper    │────▶│  Skill Matrix   │
+│  :443 (HTTPS)   │     │  (optional, :8000)│     │   Streamlit     │
 │                 │     │                  │     │     :8503       │
 └─────────────────┘     └──────────────────┘     └────────┬────────┘
                                                           │
@@ -134,17 +140,13 @@ Skill_Matrix/
 ├── README_DE.md                # Diese Datei (Deutsch)
 ├── FLOWCHART.md                # Technischer Flussplan (Englisch)
 ├── FLOWCHART_DE.md             # Deutscher Flussplan
-├── data/                       # JSON-Datensätze (legacy)
-│   ├── consultants.json
-│   └── tenders.json
-└── docs/                       # CSV-Datendateien (aktiv)
-    ├── skills.csv              # HR-Ressourcenpool
-    └── tenders_enhanced.csv    # Projektausschreibungen
+└── data/
+    └── consultants.db          # SQLite-Datenbank (HR-Ressourcenpool)
 ```
 
-## ⚙️ Konfiguration
+## ⚙️ Deployment
 
-### Nginx Proxy (`/opt/homebrew/etc/nginx/servers/gpt.myddns.me.conf`)
+### Nginx Reverse Proxy (Beispiel)
 
 ```nginx
 location /skill-matrix/ {
@@ -159,12 +161,7 @@ location /skill-matrix/ {
 }
 ```
 
-### Start-Route (Bottle Dashboard)
-
-Endpoint: `POST /start-skill-matrix`
-- Authentifizierung erforderlich (Admin)
-- Startet Streamlit-App auf Port 8503
-- Health-Check mit 20-Sekunden-Timeout
+> **Hinweis:** Passen Sie `proxy_pass` an Ihren eigenen Host/Port und das `location`-Präfix an den gewünschten Pfad an.
 
 ## 🔧 Abhängigkeiten
 
@@ -182,22 +179,18 @@ pip install -r requirements.txt
 ## 🧪 Testing
 
 ### Manuelles Testing
-1. App öffnen unter https://gpt.myddns.me/skill-matrix/
-2. Ausschreibung TND001 (S/4HANA Finance) auswählen
-3. Auf "Passende Berater finden" klicken
-4. Überprüfen, ob CV001 (Markus Berger) als Top-Match erscheint
-5. KI-Interpretation auf korrekte Anzeige prüfen
-6. Sprache auf Deutsch umstellen und Übersetzungen prüfen
+1. App lokal starten (`streamlit run app.py …`)
+2. `http://localhost:8503/` öffnen
+3. In der Seitenleiste auf **"🌐 Live simap.ch Tenders"** klicken
+4. Nach einem SAP-Begriff suchen und ein Ergebnis auswählen
+5. Bei einer Ausschreibung auf **"🎯 Match Consultants"** klicken
+6. Überprüfen, ob Berater und KI-Interpretation korrekt angezeigt werden
+7. Sprache auf Deutsch umstellen und Übersetzungen prüfen
 
 ### API Testing
 ```bash
-# Health-Endpoint prüfen
-curl http://localhost:8503/skill-matrix/_stcore/health
-
-# Start über Dashboard-API
-curl -X POST https://gpt.myddns.me/start-skill-matrix \
-  -H "Cookie: session_id=IHRE_SESSION" \
-  -d ""
+# Health-Endpoint (Streamlit)
+curl http://localhost:8503/_stcore/health
 ```
 
 ## 📝 Anwendungsbeispiele
@@ -221,11 +214,10 @@ curl -X POST https://gpt.myddns.me/start-skill-matrix \
 
 ## 🐛 Fehlerbehebung
 
-### 502 Bad Gateway
-- **Ursache**: Skill Matrix App läuft nicht
-- **Lösung**: "Start"-Button im Dashboard klicken oder manuell starten:
+### Verbindung abgelehnt / 502 Bad Gateway
+- **Ursache**: Streamlit-App läuft nicht
+- **Lösung**: App starten:
   ```bash
-  cd /Users/usermacrtx/Documents/Demos/Skill_Matrix
   streamlit run app.py --server.port=8503 --server.address=0.0.0.0
   ```
 
@@ -239,16 +231,7 @@ curl -X POST https://gpt.myddns.me/start-skill-matrix \
 
 ### Sprache wechselt nicht
 - **Ursache**: Browser-Cache
-- **Lösung**: Cookies für gpt.myddns.me löschen oder Inkognito-Modus verwenden
-
-### Start-Button zeigt JSON-Fehler
-- **Ursache**: Dashboard-App benötigt Neustart
-- **Lösung**: all_demos-App neu starten:
-  ```bash
-  lsof -ti:8000 | xargs kill -9
-  cd /Users/usermacrtx/Documents/Demos/all_demos
-  python3 app.py &
-  ```
+- **Lösung**: Seite neu laden (Cmd/Ctrl+Shift+R) oder Inkognito-Fenster verwenden.
 
 ## 📊 Performance
 
@@ -256,12 +239,11 @@ curl -X POST https://gpt.myddns.me/start-skill-matrix \
 - **KI-Interpretation**: 5-15 Sekunden (abhängig von LLM-Antwortzeit)
 - **Gleichzeitige Benutzer**: Unterstützt 10+ gleichzeitige Benutzer
 
-## 🔐 Sicherheit
+## 🔐 Sicherheitshinweise
 
-- Sitzungsbasierte Authentifizierung über Bottle-Dashboard
-- Start/Stopp-Funktionalität nur für Admins
-- XSRF-Schutz in Streamlit aktiviert
-- HTTPS-Verschlüsselung über Nginx
+- Diese App liest Beraterdaten aus einer lokalen SQLite-Datenbank und bezieht öffentliche Ausschreibungsdaten von `simap.ch`. Für den Matching-Workflow sind keine Schreibzugriffe auf die Datenbank erforderlich.
+- Beim Deployment hinter einem Reverse-Proxy sollte eine Authentifizierung ergänzt werden (Basic Auth, OAuth oder ein Wrapper-Dashboard) — die App selbst enthält keine eingebaute Authentifizierung.
+- Die Datei `data/consultants.db` enthält personenbezogene Daten (Namen, Standorte, Berufserfahrung). Sie sollte nicht ohne Notwendigkeit in ein öffentliches Repository eingecheckt werden.
 
 ## 📄 Lizenz
 

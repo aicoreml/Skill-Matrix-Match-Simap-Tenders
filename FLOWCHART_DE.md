@@ -6,18 +6,18 @@
 graph TB
     User[👤 Projektmanager] -->|HTTPS| Nginx[Nginx Proxy :443]
     Nginx -->|/skill-matrix/| Streamlit[Streamlit App :8503]
-    
-    subgraph "Bottle Dashboard :8000"
+
+    subgraph "Optionaler Auth-Wrapper (Beispiel)"
         Login[Login-Seite] --> Auth[Sitzungs-Auth]
         Auth --> Dashboard[App Dashboard]
         Dashboard -->|Start Button| StartAPI[POST /start-skill-matrix]
         StartAPI -->|Subprozess| Streamlit
     end
-    
+
     subgraph "Skill Matrix App"
-        UI[Benutzeroberfläche] --> LoadData[CSV-Dateien laden]
-        LoadData --> SelectTender[Ausschreibung auswählen]
-        SelectTender --> MatchBtn[Match-Button klicken]
+        UI[Benutzeroberfläche] --> LoadData[Daten laden]
+        LoadData --> SearchTender[Live simap.ch Ausschreibungen durchsuchen]
+        SearchTender --> MatchBtn[Match-Button klicken]
         MatchBtn --> SkillMatch[Kompetenz-Matching-Algorithmus]
         SkillMatch --> Results[Ergebnisse anzeigen]
         Results --> LLM[Ollama LLM abfragen]
@@ -25,12 +25,12 @@ graph TB
     end
     
     subgraph "Datenschicht"
-        SkillsCSV[docs/skills.csv]
-        TendersCSV[docs/tenders_enhanced.csv]
+        ConsultantsDB[(SQLite: data/consultants.db)]
+        SimapAPI[simap.ch Öffentliche Ausschreibungen]
     end
     
-    LoadData --> SkillsCSV
-    LoadData --> TendersCSV
+    LoadData --> ConsultantsDB
+    LoadData --> SimapAPI
     
     subgraph "Externe Dienste"
         Ollama[Ollama LLM :11434<br/>minimax-m2.7:cloud]
@@ -183,8 +183,8 @@ sequenceDiagram
 ```mermaid
 graph LR
     subgraph "Eingabeschicht"
-        A[skills.csv]
-        B[tenders_enhanced.csv]
+        A[(SQLite: data/consultants.db)]
+        B[simap.ch Öffentliche Ausschreibungen]
     end
     
     subgraph "Verarbeitungsschicht"
@@ -266,24 +266,22 @@ graph TB
     
     subgraph "Backend-Funktionen"
         LC[load_consultants]
-        LT[load_tenders]
+        SF[search_simap_tenders]
         MS[match_skills]
         GLM[generate_llm_interpretation]
         QO[query_ollama]
     end
     
     subgraph "Datenspeicher"
-        SC[Sitzungsstatus<br/>language]
-        CSV1[skills.csv]
-        CSV2[tenders_enhanced.csv]
+        SC[Sitzungsstatus<br/>language, page, selected_simap_tender]
+        DB1[(SQLite: data/consultants.db)]
     end
     
     UI --> SC
-    DD --> LT
-    LT --> CSV2
+    SearchBtn --> SF
     MB --> MS
     MS --> LC
-    LC --> CSV1
+    LC --> DB1
     MS --> CC
     MS --> RT
     MS --> GLM
@@ -338,22 +336,22 @@ graph TB
     end
     
     subgraph "Nginx Reverse Proxy"
-        Nginx[Nginx Server<br/>gpt.myddns.me]
+        Nginx[Nginx Server<br/>ihr-host.example.com]
         SSL[SSL-Zertifikat<br/>Let's Encrypt]
     end
     
     subgraph "Anwendungsschicht"
-        Bottle[Bottle Dashboard<br/>Port 8000]
+        AuthWrapper[Auth-Wrapper<br/>Port 8000]
         Streamlit[Streamlit Apps<br/>Verschiedene Ports]
         SkillMatrix[Skill Matrix<br/>Port 8503]
     end
-    
+
     subgraph "KI-Dienste"
         Ollama[Ollama LLM<br/>Port 11434]
     end
-    
+
     subgraph "Dateisystem"
-        DataFiles[CSV-Datendateien<br/>/docs/]
+        DataFiles[(SQLite: data/consultants.db)]
         Logs[Log-Dateien<br/>*.log]
     end
     
